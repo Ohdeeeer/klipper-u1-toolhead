@@ -87,6 +87,10 @@ static const struct gpio_pwm_info pwm_regs[] = {
     {TIM15, GPIO('F', 10), 2, GPIO_FUNCTION(0)}
   #endif
 #elif CONFIG_MACH_STM32F1
+    #if CONFIG_MACH_AT32F403A
+        {TIM1, GPIO('A', 8),  1, GPIO_FUNCTION(1)},
+        {TIM1, GPIO('A', 9),  2, GPIO_FUNCTION(1)},
+    #endif
     {TIM2, GPIO('A', 0),  1, GPIO_FUNCTION(2)},
     {TIM2, GPIO('A', 1),  2, GPIO_FUNCTION(2)},
     {TIM2, GPIO('A', 2),  3, GPIO_FUNCTION(2)},
@@ -415,9 +419,15 @@ gpio_pwm_setup(uint8_t pin, uint32_t cycle_time, uint32_t val)
     // Enable PWM output
     p->timer->CR1 |= TIM_CR1_CEN;
 
+#if CONFIG_MACH_AT32F403A
+    // Advanced timers need MOE enabled
+    if (p->timer == TIM1)
+        p->timer->BDTR |= TIM_BDTR_MOE;
+#else
     // Advanced timers need MOE enabled.  On standard timers this is a
     // write to reserved memory, but that seems harmless in practice.
     p->timer->BDTR = TIM_BDTR_MOE;
+#endif
 
     return channel;
 }

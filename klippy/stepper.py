@@ -11,6 +11,23 @@ class error(Exception):
 
 
 ######################################################################
+# Power_loss need save steppers
+######################################################################
+power_loss_need_save_steppers = ['stepper_x', 'stepper_y', 'stepper_z', 'extruder']
+def get_stepper_type_and_index(stepper):
+    if not isinstance(stepper, str):
+        return (0xFF, 0xFF)
+
+    for idx, name in enumerate(power_loss_need_save_steppers):
+        if stepper.startswith(name):
+            remaining = stepper[len(name):]
+            if remaining.isdigit() or remaining == '':
+                num = int(remaining) if remaining else 0
+                return (idx, num)
+    return (0xFF, 0xFF)
+
+
+######################################################################
 # Steppers
 ######################################################################
 
@@ -34,6 +51,7 @@ class MCU_stepper:
         mcu.register_config_callback(self._build_config)
         self._step_pin = step_pin_params['pin']
         self._invert_step = step_pin_params['invert']
+        self._stepper_type, self._stepper_index = get_stepper_type_and_index(self._name)
         printer = mcu.get_printer()
         if dir_pin_params['chip'] is not mcu:
             raise printer.config_error(
@@ -112,12 +130,12 @@ class MCU_stepper:
         step_pulse_ticks = self._mcu.seconds_to_clock(self._step_pulse_duration)
         self._mcu.add_config_cmd(
             "config_stepper oid=%d step_pin=%s dir_pin=%s invert_step=%d"
-            " step_pulse_ticks=%u" % (self._oid, self._step_pin, self._dir_pin,
-                                      invert_step, step_pulse_ticks))
+            " step_pulse_ticks=%u type=%u index=%u" % (self._oid, self._step_pin, self._dir_pin,
+                                      invert_step, step_pulse_ticks, self._stepper_type, self._stepper_index))
         self._mcu.add_config_cmd("reset_step_clock oid=%d clock=0"
                                  % (self._oid,), on_restart=True)
         step_cmd_tag = self._mcu.lookup_command(
-            "queue_step oid=%c interval=%u count=%hu add=%hi").get_command_tag()
+            "queue_step oid=%c interval=%u count=%hu add=%hi line=%u").get_command_tag()
         dir_cmd_tag = self._mcu.lookup_command(
             "set_next_step_dir oid=%c dir=%c").get_command_tag()
         self._reset_cmd_tag = self._mcu.lookup_command(

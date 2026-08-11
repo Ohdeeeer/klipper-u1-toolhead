@@ -548,6 +548,12 @@ class ToolHead:
         self._calc_junction_deviation()
         return (self.max_velocity, self.max_accel,
                 self.square_corner_velocity, self.min_cruise_ratio)
+    def set_accel(self, accel):
+        if accel < 0:
+            return
+        self.wait_moves()
+        self.max_accel = accel
+        self._calc_junction_deviation()
 
 # Support common G-Code commands relative to the toolhead
 class ToolHeadCommandHelper:

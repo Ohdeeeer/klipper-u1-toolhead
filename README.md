@@ -1,17 +1,47 @@
-Welcome to the Klipper project!
+# Klipper with Snapmaker U1 toolhead support
 
-[![Klipper](docs/img/klipper-logo-small.png)](https://www.klipper3d.org/)
+A [mainline Klipper](https://www.klipper3d.org/) fork that adds support for the
+**Snapmaker U1 toolhead** — an AT32F415RC ("STM32F105 drop-in") MCU with an
+inductance-coil bed probe and an LIS2DW accelerometer. It lets a U1 toolhead run
+as a normal extruder from **stock mainline Klipper** (no Snapmaker fork needed),
+e.g. on a bench rig or another printer.
 
-https://www.klipper3d.org/
+## What this fork adds (vs. upstream Klipper)
 
-The Klipper firmware controls 3d-Printers. It combines the power of a
-general purpose computer with one or more micro-controllers. See the
-[features document](https://www.klipper3d.org/Features.html) for more
-information on why you should use the Klipper software.
+Firmware (`src/stm32/`):
 
-Start by [installing Klipper software](https://www.klipper3d.org/Installation.html).
+- **AT32F415RC / AT32F403A** MCU support (native AT32 clocking, USB-OTG,
+  USBCANBUS, CAN, SPI, hard-PWM for the toolhead/main-board)
+- **Inductance-coil bed probe** (`inductance_coil.c`) — the U1's eddy-current
+  bed-detection sensor (`pulse_endstop` pin type, frequency trigger)
+- **Extended stepper protocol** (power-loss wire format) so un-reflashed stock
+  U1 toolhead firmware can be driven
 
-Klipper software is Free Software. See the [license](COPYING) or read
-the [documentation](https://www.klipper3d.org/Overview.html). We
-depend on the generous support from our
-[sponsors](https://www.klipper3d.org/Sponsors.html).
+Host (`klippy/`):
+
+- `extras/inductance_coil.py` + `extras/probe_inductance_coil.py` — coil
+  frequency sensor, `pulse_endstop`, and probe session/calibration
+- `extras/lis2dw.py` — fork wire-compatible LIS2DW accelerometer (SPI-only)
+- `klippy/mcu.py` — `is_pulse_gpio` + `pulse_endstop` pin support
+- `klippy/stepper.py`, `src/stepper.{c,h}` — extended `queue_step` /
+  `config_stepper` for the stock toolhead firmware
+
+## Configs / docs
+
+- `config/sample-snapmaker-u1-toolhead.cfg` — U1 toolhead as a single
+  `[extruder]` with the coil probe and LIS2DW
+- `docs/TOOLHEAD_ON_RASPBERRY_PI.md` — build + bring-up guide for driving a U1
+  toolhead from a Raspberry Pi with this port
+- `config/at32f415.config.resolved` — verified toolhead firmware `.config`
+- `config/octopus-pro-v1.1.config.resolved` — example main-board `.config`
+  (BTT Octopus Pro v1.1, STM32H723)
+
+## Building
+
+Same as upstream Klipper: `make menuconfig` (select the AT32F415/AT32F403A MCU
+for toolheads) then `make`. See the guide for the exact `.config` used on the
+bench rig.
+
+## License
+
+Same as upstream Klipper — GPLv3 (see `COPYING`).

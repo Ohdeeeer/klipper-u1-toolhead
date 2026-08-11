@@ -51,6 +51,14 @@ struct spi_info {
   DECL_CONSTANT_STR("BUS_PINS_spi1a", "PB4,PB5,PB3");
   DECL_ENUMERATION("spi_bus", "spi3", 3);
   DECL_CONSTANT_STR("BUS_PINS_spi3", "PB4,PB5,PB3");
+  #if CONFIG_MACH_AT32F403A
+    #define SPI4_BASE             (APB1PERIPH_BASE + 0x00004000UL)
+    #define SPI4                ((SPI_TypeDef *)SPI4_BASE)
+    DECL_ENUMERATION("spi_bus", "spi3a", 4);
+    DECL_CONSTANT_STR("BUS_PINS_spi3a", "PC11,PC12,PC10");
+    DECL_ENUMERATION("spi_bus", "spi4", 5);
+    DECL_CONSTANT_STR("BUS_PINS_spi4", "PE13,PE14,PE11");
+  #endif
 #elif CONFIG_MACH_STM32F2
   DECL_ENUMERATION("spi_bus", "spi2_PB14_PB15_PB13", 0);
   DECL_CONSTANT_STR("BUS_PINS_spi2_PB14_PB15_PB13", "PB14,PB15,PB13");
@@ -238,6 +246,10 @@ static const struct spi_info spi_bus[] = {
   { SPI1, GPIO('A', 6), GPIO('A', 7), GPIO('A', 5), SPI_FUNCTION(0, 0, 0) },
   { SPI1, GPIO('B', 4), GPIO('B', 5), GPIO('B', 3), SPI_FUNCTION(5, 5, 5) },
   { SPI3, GPIO('B', 4), GPIO('B', 5), GPIO('B', 3), SPI_FUNCTION(0, 0, 0) },
+  #if CONFIG_MACH_AT32F403A
+    { SPI3, GPIO('C', 11), GPIO('C', 12), GPIO('C', 10), SPI_FUNCTION(6, 6, 6) },
+    { SPI4, GPIO('E', 13), GPIO('E', 14), GPIO('E', 11), SPI_FUNCTION(5, 5, 5) },
+  #endif
 #elif CONFIG_MACH_STM32F2
   { SPI2, GPIO('B', 14), GPIO('B', 15), GPIO('B', 13), SPI_FUNCTION(5, 5, 5) },
   { SPI1, GPIO('A', 6), GPIO('A', 7), GPIO('A', 5), SPI_FUNCTION(5, 5, 5) },
@@ -303,6 +315,11 @@ spi_setup(uint32_t bus, uint8_t mode, uint32_t rate)
     SPI_TypeDef *spi = spi_bus[bus].spi;
     if (!is_enabled_pclock((uint32_t)spi)) {
         enable_pclock((uint32_t)spi);
+        #if CONFIG_MACH_AT32F403A
+            extern void mcu_spi4_gpio_remap(void);
+            if (spi_bus[bus].miso_pin == GPIO('E', 13))
+                mcu_spi4_gpio_remap();
+        #endif
         gpio_peripheral(spi_bus[bus].miso_pin, spi_bus[bus].miso_af, 1);
         gpio_peripheral(spi_bus[bus].mosi_pin, spi_bus[bus].mosi_af, 0);
         gpio_peripheral(spi_bus[bus].sck_pin, spi_bus[bus].sck_af, 0);

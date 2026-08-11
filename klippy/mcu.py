@@ -338,7 +338,7 @@ class TriggerDispatch:
         return res[0]
 
 class MCU_endstop:
-    def __init__(self, mcu, pin_params):
+    def __init__(self, mcu, pin_params, is_pulse_gpio=False):
         self._mcu = mcu
         self._pin = pin_params['pin']
         self._pullup = pin_params['pullup']
@@ -347,6 +347,7 @@ class MCU_endstop:
         self._home_cmd = self._query_cmd = None
         self._mcu.register_config_callback(self._build_config)
         self._rest_ticks = 0
+        self._is_pulse_gpio = is_pulse_gpio
         self._dispatch = TriggerDispatch(mcu)
     def get_mcu(self):
         return self._mcu
@@ -356,8 +357,8 @@ class MCU_endstop:
         return self._dispatch.get_steppers()
     def _build_config(self):
         # Setup config
-        self._mcu.add_config_cmd("config_endstop oid=%d pin=%s pull_up=%d"
-                                 % (self._oid, self._pin, self._pullup))
+        self._mcu.add_config_cmd("config_endstop oid=%d pin=%s pull_up=%d is_pulse_gpio=%d"
+                                 % (self._oid, self._pin, self._pullup, self._is_pulse_gpio))
         self._mcu.add_config_cmd(
             "endstop_home oid=%d clock=0 sample_ticks=0 sample_count=0"
             " rest_ticks=0 pin_value=0 trsync_oid=0 trigger_reason=0"
@@ -1110,10 +1111,12 @@ class MCUConfigHelper:
         return self._config_finalized
     def setup_pin(self, pin_type, pin_params):
         self._verify_not_finalized()
-        pcs = {'endstop': MCU_endstop,
+        pcs = {'endstop': MCU_endstop, 'pulse_endstop': MCU_endstop,
                'digital_out': MCU_digital_out, 'pwm': MCU_pwm, 'adc': MCU_adc}
         if pin_type not in pcs:
             raise pins.error("pin type %s not supported on mcu" % (pin_type,))
+        if pin_type == 'pulse_endstop':
+            return pcs[pin_type](self._mcu, pin_params, True)
         return pcs[pin_type](self._mcu, pin_params)
     def create_oid(self):
         self._verify_not_finalized()

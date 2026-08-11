@@ -14,18 +14,31 @@
 #include "internal.h" // GPIO
 #include "sched.h" // DECL_INIT
 
-#if CONFIG_STM32_USB_PB14_PB15
-  #define IS_OTG_HS 1
-  #define GPIO_D_NEG GPIO('B', 14)
-  #define GPIO_D_POS GPIO('B', 15)
-  #define GPIO_FUNC GPIO_FUNCTION(12)
-  DECL_CONSTANT_STR("RESERVE_PINS_USB1", "PB14,PB15");
-#else
-  #if CONFIG_MACH_STM32H723
+#if !CONFIG_MACH_AT32F415
+  #if CONFIG_STM32_USB_PB14_PB15
     #define IS_OTG_HS 1
+    #define GPIO_D_NEG GPIO('B', 14)
+    #define GPIO_D_POS GPIO('B', 15)
+    #define GPIO_FUNC GPIO_FUNCTION(12)
+    DECL_CONSTANT_STR("RESERVE_PINS_USB1", "PB14,PB15");
   #else
-    #define IS_OTG_HS 0
+    #if CONFIG_MACH_STM32H723
+      #define IS_OTG_HS 1
+    #else
+      #define IS_OTG_HS 0
+    #endif
+    #define GPIO_D_NEG GPIO('A', 11)
+    #define GPIO_D_POS GPIO('A', 12)
+    #define GPIO_FUNC GPIO_FUNCTION(10)
+    DECL_CONSTANT_STR("RESERVE_PINS_USB", "PA11,PA12");
   #endif
+#else
+  #include "at32f415rc.h"
+  #define USB_OTG_GCCFG_NOVBUSSENS_Pos             (21U)
+  #define USB_OTG_GCCFG_NOVBUSSENS_Msk             (0x1UL << USB_OTG_GCCFG_NOVBUSSENS_Pos) /*!< 0x00200000 */
+  #define USB_OTG_GCCFG_NOVBUSSENS                 USB_OTG_GCCFG_NOVBUSSENS_Msk  /*!< VBUS sensing disable option */
+
+  #define IS_OTG_HS 0
   #define GPIO_D_NEG GPIO('A', 11)
   #define GPIO_D_POS GPIO('A', 12)
   #define GPIO_FUNC GPIO_FUNCTION(10)
@@ -456,13 +469,17 @@ void
 usb_init(void)
 {
     // Enable USB clock
-#if CONFIG_MACH_STM32H7
+#if !CONFIG_MACH_AT32F415
+    #if CONFIG_MACH_STM32H7
     if (READ_BIT(PWR->CR3, PWR_CR3_USB33RDY) != (PWR_CR3_USB33RDY)) {
         SET_BIT(PWR->CR3, PWR_CR3_USB33DEN);
     }
     SET_BIT(RCC->AHB1ENR, USBOTGEN);
 #else
     RCC->AHB2ENR |= RCC_AHB2ENR_OTGFSEN;
+#endif
+#else
+    at32f415rc_usbotg_clock_config();
 #endif
     while (!(OTG->GRSTCTL & USB_OTG_GRSTCTL_AHBIDL))
         ;
@@ -473,6 +490,8 @@ usb_init(void)
     OTGD->DCFG |= (3 << USB_OTG_DCFG_DSPD_Pos);
 #if CONFIG_MACH_STM32F446 || CONFIG_MACH_STM32H7 || CONFIG_MACH_STM32F7
     OTG->GOTGCTL = USB_OTG_GOTGCTL_BVALOEN | USB_OTG_GOTGCTL_BVALOVAL;
+#elif CONFIG_MACH_AT32F415
+    OTG->GCCFG |= (USB_OTG_GCCFG_VBUSBSEN | USB_OTG_GCCFG_NOVBUSSENS);
 #else
     OTG->GCCFG |= USB_OTG_GCCFG_NOVBUSSENS;
 #endif
