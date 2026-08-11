@@ -1,13 +1,9 @@
-# Snapmaker U1 Toolhead on a Raspberry Pi — Complete Build Guide
+# Snapmaker U1 Toolhead on a Pi — Complete Build Guide
 
-This document describes how to connect a **Snapmaker U1 toolhead** (the small
-toolhead board with its own extruder, heater, fans, and bed-detection coil) to a
-**Raspberry Pi**, and drive it with a **mainline Klipper port** (the
-`mainline-port` tree that adds AT32 + inductance-coil + LIS2DW support).
+This document describes how to connect a **Snapmaker U1 toolhead** to any Klipper based printer.
 
 It is written for a person or AI starting with zero context. All machine-specific
-values (IP addresses, serial numbers, local file paths, usernames) are shown as
-`<placeholders>` — use your own.
+values are shown as `<placeholders>` — use your own.
 
 ---
 
@@ -15,7 +11,7 @@ values (IP addresses, serial numbers, local file paths, usernames) are shown as
 
 - A **Raspberry Pi** runs the ported **klippy** (host software) from the
   `mainline-port` tree.
-- A **main control board** (currently a BTT **Octopus Pro v1.1**, STM32H723)
+- A **main control board** (I used a BTT **Octopus Pro v1.1**, STM32H723)
   provides X/Y/Z stepper motion and the main `[mcu]`.
 - The **U1 toolhead** is connected to the Pi over **USB** and acts as the
   printer's **extruder** (its own MCU, `[mcu e0]`).
