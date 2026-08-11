@@ -11,9 +11,7 @@ values (IP addresses, serial numbers, local file paths, usernames) are shown as
 
 ---
 
-## 1. What you are building
-
-A bench test rig:
+## 1. What you need
 
 - A **Raspberry Pi** runs the ported **klippy** (host software) from the
   `mainline-port` tree.
