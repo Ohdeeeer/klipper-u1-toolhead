@@ -29,10 +29,7 @@ accelerometer, and a **bed-detection coil** used as a Z-probe.
 > on its board. The other toolheads (1–3) do **not** — their LIS2DW reads back
 > `0xff` (WHO_AM_I fail) and `ACCELEROMETER_*` commands error with
 > `Invalid lis2dw id`. The **replacement toolhead boards Snapmaker sells are all
-> fully populated** and do have the accelerometer. Tested 2026-08-10: swapping
-> the left toolhead onto the bench rig fixed the LIS2DW (WHO_AM_I `0x44`,
-> measurements + CSV output work); the earlier `0xff` readings came from
-> toolheads 1–3.
+> fully populated** and do have the accelerometer.
 
 ---
 
@@ -49,7 +46,7 @@ accelerometer, and a **bed-detection coil** used as a Z-probe.
 
 ### 2.2 The USB-C toolhead cable
 
-The stock USB-C cable carries real differential USB, not UART. The pin
+The USB-C connection is real differential USB. The pin
 positions on the USB-C connector follow the standard USB-C pinout — only the
 *function* of some pins differs from a data-only cable (VCC carries +24 V, and
 GND also carries the 24 V return):
@@ -60,7 +57,7 @@ GND also carries the 24 V return):
 | VCC   | Red                                    | **+24 V** power to the toolhead     |
 | D-    | White                                  | Differential USB data (to PA11/PA12)|
 | D+    | Green                                  | Differential USB data (to PA11/PA12)|
-| CC    | Yellow                                 | 8 kΩ to GND on the hub side (USB-C presence detect) |
+| CC    | Yellow                                 | 8 kΩ to GND on the hub side (USB-C presence detect?) |
 
 Note: the **CC pin does not appear to be needed for the toolhead to function** —
 it looks like a USB-C presence/connection detect that is not actually used here.
@@ -80,18 +77,14 @@ So to connect a toolhead to a Pi you need:
 
 ### 2.3 Raspberry Pi
 
-- Any Raspberry Pi with a USB port (a repurposed printer Pi works fine).
+- Any Raspberry Pi with a USB port.
 - The toolhead can plug **directly into a Pi USB port** or into a USB hub.
 - The Pi does **not** need any special hardware to talk to the toolhead — it's
   just a USB serial device.
 
 ### 2.4 Main motion board
 
-Any board klippy supports. The rig currently uses a BTT **Octopus Pro v1.1**
-(STM32H723) with the **mainline-port firmware** flashed (bootloader
-`0x8020000`, 25 MHz crystal — see Appendix A). It provides `[mcu]`, the
-X/Y/Z steppers, TMC drivers, and the heated bed. The toolhead is **not** plugged
-into the main board — both connect to the Pi over USB.
+Any board standard klipper supports.
 
 ---
 
@@ -99,8 +92,7 @@ into the main board — both connect to the Pi over USB.
 
 ### 3.1 The `mainline-port` Klipper tree (required)
 
-The toolhead MCU is an **AT32**, and stock upstream Klipper cannot initialize
-the AT32 chips correctly. The port adds native support by porting the AT32
+The port adds native support by porting the AT32
 firmware sources, the inductance-coil modules, and the LIS2DW module into a
 **mainline Klipper tree** (the `mainline-port` workspace). Klippy and the
 toolhead firmware are **protocol-compatible without matching version strings**
@@ -121,18 +113,11 @@ auto-rebuilds it on startup when the C sources change (via
 causes an `OSError` at `reactor.Reactor()` init (the main thread hangs at
 `_shutdown`).
 
-### 3.3 Python environment
 
-A normal Python venv works. klippy does **not** need `lava_io`.
-
-### 3.4 Firmware on the toolhead
+### 3.3 Firmware on the toolhead
 
 **You do not need to reflash the toolhead** — the stock Snapmaker firmware on it
-is protocol-compatible with the ported klippy and works as-is. This is the
-cornerstone of the whole approach: the port must speak the **un-reflashed**
-stock toolhead firmware's wire protocol, including its extended stepper protocol
-(`config_stepper ... type=%u index=%u`, `queue_step ... line=%u`) and its
-`lis2dw`/`inductance_coil` command set.
+is protocol-compatible with the ported klippy and works as-is.
 
 - The toolhead runs stock fork firmware (e.g. `lava_1.4.0_20260522-4-g101c7dfd`,
   138 MCU commands).
@@ -147,8 +132,8 @@ If you must build toolhead firmware, the build config is: MCU `stm32f105xc`,
 `CONFIG_MACH_AT32F415=y`, 8 MHz xtal → 144 MHz, `CONFIG_USBSERIAL=y`,
 `CONFIG_STM32_USB_PA11_PA12=y`, VID/PID `1d50:614e`. Flashing requires a
 power-cycle + BOOT0 procedure (the toolhead has no software DFU trigger) — a
-separate exercise, not needed to make it work with the Pi. **Note: reflashing a
-toolhead has not been tested as part of this project.**
+separate exercise, not needed to make it work with the Pi. 
+**Note: reflashing a toolhead has not been tested yet.**
 
 ---
 
@@ -181,18 +166,9 @@ All 4 toolheads share this pinout (PA8/PA9/PB2/PB5/PA2/PA3/PB3).
 
 ## 5. Config files
 
-The port ships one universal config, `config/sample-snapmaker-u1-toolhead.cfg`
-(the full U1 toolhead section, see §5.2). The bench rig's full config set
-(`printer.cfg`, `steppers.cfg`, etc.) is **machine-specific to that rig** and is
-**not** shipped with the port:
-
-- `mainsail.cfg`, `Start_End.cfg`, `fans.cfg` — UI macros, print-start/end
-  routines, and fan wiring for the specific rig/mainboard. Use your own.
-- `macros.cfg`, `Speed.cfg` — bench-rig test macros (TEST_SPEED, BRUSH_NOZZLE,
-  bed-screw positions, homing_override, ...). **None of these are added by the
-  port/fork** — the Snapmaker fork's own macros (`SM_PRINT_*`, etc.) live in the
-  U1's `fluidd.cfg` and are for the multi-toolhead U1, not a single-toolhead
-  bench rig. Omit them or supply your own.
+The port ships with an universal config for a single toolhead,
+`config/sample-snapmaker-u1-toolhead.cfg` (the full U1 toolhead section, see
+§5.2).
 
 ### 5.1 Main config (`printer.cfg`)
 
@@ -204,18 +180,17 @@ use your own board's pinout and values.
 ```ini
 # Your own machine config goes here (steppers, [mcu], heaters, fans, etc.)
 #   -> use your own board's pinout; none of that is toolhead-specific.
-[include steppers.cfg]   # your X/Y/Z steppers + TMC drivers
 [include toolhead.cfg]   # the U1 toolhead (see §5.2)
 
 [mcu]
 serial: /dev/serial/by-id/<your-main-board-usb-serial>
 restart_method: command
 
-# Your [printer] section: kinematics, max_velocity, max_accel, etc. (yours)
+# Your [printer] section: kinematics, max_velocity, max_accel, etc.
 
 # Ported/toolhead-relevant pieces only:
 [force_move]
-enable_force_move: True   # optional; useful when testing with no endstops
+enable_force_move: True   # optional; useful when testing
 
 [resonance_tester]
 accel_chip: lis2dw e0_lis2dw
@@ -226,15 +201,8 @@ probe_points:
 
 Notes:
 
-- The main board's own extruder section is **removed** — the toolhead is the
-  only extruder.
-- Any BLTouch/mechanical Z probe on the main board is **removed** — the toolhead
-  inductance coil provides the printer-wide `probe` object (see §6). If you keep
-  a `[bltouch]`, it conflicts with the coil's `probe`.
-- `[input_shaper]` is intentionally **not** configured yet — to be tuned with
-  the LIS2DW accel on the toolhead (`MEASURE_AXES_NOISE` / `TEST_RESONANCES`).
-- `min_temp: -100` on the toolhead extruder is a test-rig convenience when no
-  thermistor is attached (floating ADC reads roughly -50..-90 °C). Raise it when
+- `min_temp: -100` on the toolhead extruder is a convenience when testing
+  without a thermistor (floating ADC reads roughly -50..-90 °C). Raise it when
   real sensors are present.
 
 ### 5.2 Toolhead config (`toolhead.cfg`; ships as `config/sample-snapmaker-u1-toolhead.cfg`)
@@ -269,7 +237,7 @@ pid_Ki: 9.317
 pid_Kd: 30.186
 min_temp: -100
 max_temp: 300
-min_extrude_temp: 10
+min_extrude_temp: 170
 max_extrude_only_distance: 200
 smooth_time: 2
 
@@ -292,7 +260,7 @@ cal_window_size: 5
 cal_time_out: 2
 speed: 2.0
 sample_retract_dist: 1
-relative_trigger_freq: 1900   # our rig's value; try 300 first (see §6.1)
+relative_trigger_freq: 300
 max_freq: 1650000
 min_freq: 1200000
 horizontal_move_z: 100
@@ -304,13 +272,7 @@ axes_map: y,x,z
 ```
 
 Notes:
-
-- `min_extrude_temp: 10` is lowered from the stock 170 to allow cold-extrusion
-  tests on a bench rig.
-- The hotend fan is **`!e0:PB0` (active-low)**, not `PB3`. `PB3` is the
-  part-cooling fan. Easy to confuse.
-- `sensor_type: Generic 3950` is used on the rig (matches the octopus config);
-  the U1 uses `NTC_100K_3950_PRECISE`.
+- `sensor_type: Generic 3950` is used ; the U1 uses `NTC_100K_3950_PRECISE`.
 
 ### 5.3 Find the toolhead's serial
 
@@ -346,17 +308,10 @@ ls /dev/serial/by-path/   # match the platform-...-usb-...-if00 entry
 ```
 
 On the **U1 itself**, each toolhead already has a fixed port on the internal
-USB hub (by-path `usb-0:1.x`), so by-path would work there. On a **bench rig**,
+USB hub (by-path `usb-0:1.x`), so by-path would work there. On a **printer**,
 by-path is fine **if you always plug the toolhead into the same Pi port/hub
 port**. By-id is the more robust default (recommended): it is immune to port
 changes, and you only edit it when you swap physical toolheads.
-
-> **After swapping toolheads, update the serial!** Each physical toolhead has a
-> different unique serial in its by-id name. If you swap toolheads (e.g. to the
-> left one with the accelerometer), edit `[mcu e0]` serial to match or klippy
-> fails with `Unable to open serial port`. (2026-08-10: the 0.7.2 toolhead was
-> swapped for the 1.4.0 left toolhead — the by-id serial changed and klippy
-> would not start until `toolhead.cfg` was updated.)
 
 ---
 
@@ -394,19 +349,12 @@ cal_window_size: 5
 cal_time_out: 2
 speed: 2.0
 sample_retract_dist: 1
-relative_trigger_freq: 1900
+relative_trigger_freq: 300
 max_freq: 1650000
 min_freq: 1200000
 horizontal_move_z: 100
 ```
 
-> **`relative_trigger_freq` may need raising — on OUR test rig it did.** The
-> stock U1 value is **300 Hz**, and that works on the U1. But on *our* bench rig
-> the X/Y gantry steppers coupled EMI into the coil oscillator that was ~5×
-> larger (see §6.6), so we used **1900 Hz** — wider than the worst-case gantry
-> EMI (±1728 Hz) yet still triggers on the real bed. Your rig may not have this
-> problem; start with **300 Hz** and only raise it if you get false triggers
-> (`No trigger on probe after full movement`).
 
 ### 6.2 Firmware requirements
 
@@ -460,7 +408,7 @@ This is safe because the default probe path already uses the non-timer variant
 (`sample_wait_before_setup=0.1` / `sample_wait_after_setup=0.05`); the
 with-timer variant is only used when both waits are 0.
 
-### 6.4 Verify the coil works
+### 6.4 Verify the eddy coil works
 
 Query the current frequency (response text goes to the gcode terminal and
 klippy.log; the API only returns `{"result":"ok"}`):
@@ -470,7 +418,7 @@ curl -X POST http://localhost:7125/printer/gcode/script \
   -d 'script=INDUCTANCE_COIL_QUERY PROBE=extruder'
 ```
 
-Expected klippy.log output with no metal nearby (air baseline):
+Expected klippy.log output with no metal nearby (air baseline) roughly:
 
 ```
 capture_freq: 1487127 virtual_gpio: TRIGGERED
@@ -482,13 +430,6 @@ frequency data: 307.8334s: 1487127Hz
   changes (it was observed to **rise** with pressure on the nozzle).
 - Out-of-range (< ~1.0 MHz or > ~2.0 MHz) is treated as an error sample.
 
-### 6.5 Requirements for actual probing
-
-- A **conductive (metal) bed plate** under the coil.
-- **Working Z motion** on the main board (a Z motor attached and homed).
-
-With those, `PROBE`, `PROBE_ACCURACY`, and `BED_MESH_CALIBRATE` run through the
-coil. Without Z motion, only frequency verification is possible.
 
 ### 6.6 EMI and the trigger frequency
 
@@ -497,10 +438,11 @@ moves. The probe's trigger band is `current_freq ± relative_trigger_freq`; if a
 motor swings the coil frequency past the band during a probe descent, you get a
 **false trigger** (`No trigger on probe after full movement` on the next sample).
 
-The worst offenders are the **X/Y gantry steppers**; Z motion is essentially
-silent to the coil (near the noise floor), so Z probing itself is EMI-clean.
-On our bench rig the gantry swung the coil ~5× past the stock **300 Hz** band,
-so we raised `relative_trigger_freq` to **1900 Hz** (see §6.1).
+For me, the worst offenders were the **X/Y gantry steppers**; Z motion was
+essentially silent to the coil (near the noise floor), so Z probing itself was
+EMI-clean. On my printer, the gantry swung the coil frequency up to **1728 Hz**,
+way past the stock **300 Hz** band, so I raised `relative_trigger_freq` to
+**1900 Hz**.
 
 **How to test for EMI on your machine:**
 
@@ -520,7 +462,7 @@ so we raised `relative_trigger_freq` to **1900 Hz** (see §6.1).
 
 ## 7. Bring-up sequence (recommended order)
 
-1. **Build the port** — compile the octopus (STM32H723) firmware from
+1. **Build the port** — compile the firmware from
    `mainline-port` and flash it to the main board (SD card: copy
    `out/klipper.bin` to `firmware.bin` on a FAT32 card, power cycle).
 2. **Start with the main board only** — confirm `Printer is ready` with the
@@ -528,15 +470,13 @@ so we raised `relative_trigger_freq` to **1900 Hz** (see §6.1).
 3. **Plug in the toolhead**, find its serial (`ls /dev/serial/by-id/`), add the
    `[mcu e0]` + `[extruder]` sections, restart klippy.
 4. Verify the toolhead:
-   - Thermistor reads ambient (~27 °C).
+   - Thermistor reads ambient temperature.
    - Nozzle fan turns on above `heater_temp: 45` and off below.
-   - Cold extrusion works (`min_extrude_temp: 10`).
 5. **Add the `[inductance_coil extruder]` section**, restart, confirm the
    `Unknown command` bug is gone (or apply the §6.3 patch).
 6. Run `INDUCTANCE_COIL_QUERY PROBE=extruder` — expect ~1.49 MHz in air.
 7. Verify the accelerometer: `ACCELEROMETER_QUERY CHIP=e0_lis2dw` — expect
    `lis2dw_dev_id: 44`. (Missing on toolheads 1–3.)
-8. (Later) attach a Z motor + metal plate for real probing.
 
 ---
 
@@ -549,10 +489,8 @@ so we raised `relative_trigger_freq` to **1900 Hz** (see §6.1).
 | `mcu 'e0': Unknown command: virtual_gpio_trigger_with_timer` | Old toolhead firmware; apply §6.3 patch. |
 | `Invalid lis2dw id (got ff vs 44)` / accel reads `0xff` | Toolhead 1–3 has no accelerometer chip populated. Only the **left toolhead** (tool 0) carries the LIS2DW; Snapmaker replacement boards all have it. |
 | `Unable to open serial port ... No such file or directory` | Toolhead unplugged or wrong by-id path (also after swapping toolheads — see §5.3). |
-| `Can not update MCU config as it is shutdown` | MCU shut down (e.g. temp sensor out of range). Recover with `curl -X POST http://localhost:7125/printer/gcode/firmware_restart` (works even in error state). |
-| Nozzle fan never spins / fan on wrong pin | Hotend fan is `!e0:PB0` (active low); `PB3` is the part-cooling fan. |
-| Floating temp readings ~-50..-90 °C | No thermistor attached; set `min_temp: -100` for bench use. |
-| Probe false-triggers / `No trigger on probe after full movement` | Coil frequency is being swung past the trigger band by X/Y gantry EMI. Raise `relative_trigger_freq` (our rig needed 1900 Hz; see §6.6). |
+| Floating temp readings ~-50..-90 °C | No thermistor attached; set `min_temp: -100` for testing use. |
+| Probe false-triggers / `No trigger on probe after full movement` | Coil frequency is being swung past the trigger band by X/Y gantry EMI. Raise `relative_trigger_freq` (my printer needed 1900 Hz; see §6.6). |
 | `Missing STEPPER_STEP_BOTH_EDGE` / `has deprecated code` | Expected with un-reflashed stock toolhead firmware; single-edge stepping, no functional loss. |
 | MCUs vanish from USB after power loss | Re-enumerate, then `FIRMWARE_RESTART` (or `sudo systemctl restart klipper`). |
 | `.py` host-module edits don't take effect | `RESTART`/`firmware_restart` do not reload Python modules (sys.modules cache). Use `sudo systemctl restart klipper`, then firmware_restart to reset MCUs. |
@@ -563,233 +501,13 @@ so we raised `relative_trigger_freq` to **1900 Hz** (see §6.1).
 
 - Toolhead MCU self-identifies as `stm32f105xc` (AT32F415RC running the
   STM32F105 klipper target).
-- Toolhead USB product string: `stm32f105xc-<build-timestamp>-<git-sha>`.
-- Toolhead USB VID/PID: `1d50:614e` (Klipper).
 - Toolhead firmware versions seen: `lava_1.4.0_20260522-4-g101c7dfd`
   (138 commands, has `virtual_gpio_trigger_with_timer`) and
   `lava_0.7.2_20250906-14-g7d8b3657` (137 commands, does not).
 - The ported host requires the toolhead's **extended stepper protocol**
   (`config_stepper ... type=%u index=%u`, `queue_step ... line=%u`) — ported
   from the fork's power-loss wire format so the un-reflashed toolhead works.
-- The main board (Octopus Pro v1.1) runs **mainline-port firmware**
-  (version string `?-20260809_143539-biqu`), protocol-compatible with the ported
+- The main board runs **mainline-port firmware**, protocol-compatible with the ported
   host; it does **not** need to match the toolhead's version.
 
 ---
-
-## Appendix A — Flashing the main board (Octopus Pro v1.1)
-
-The main board must run firmware built from `mainline-port`, configured for the
-octopus (see `config/octopus-pro-v1.1.config.resolved`): STM32H723, bootloader
-`0x8020000`, 25 MHz crystal. Build on the Pi:
-
-```
-cd /home/pi/mainline-port
-make olddefconfig KCONFIG_CONFIG=config/octopus-pro-v1.1.config.resolved
-make
-```
-
-Flash from an SD card: copy `out/klipper.bin` to `firmware.bin` (FAT32), power
-cycle. BTT boards may not rename the file to `FIRMWARE.CUR`, yet still flash
-successfully.
-
-The port also builds toolhead firmware (AT32F415, from
-`config/at32f415.config.resolved`) and plain STM32F103 (SKR) firmware — see
-the project notes for md5s.
-
----
-
-## Appendix B — Historical: the first test (Snapmaker fork on the SKR) — KEPT FOR REVIEW
-
-*This appendix preserves the content from the original version of this document,
-which described the very first test build (Snapmaker **fork** klippy driving an
-SKR Mini E3 with fork firmware). It is no longer the active setup — the current
-rig uses the ported `mainline-port` klippy + Octopus Pro (see the main body).
-Kept here so nothing is lost before it is reviewed and deleted.*
-
-### B.1 What the original test was
-
-- A **Raspberry Pi** ran the Snapmaker-fork **klippy** (host software).
-- A **BTT SKR Mini E3 v2.0** (STM32F103, 28 KiB bootloader, USB, startup pins
-  `!PA14`) was flashed with the **Snapmaker fork firmware** and provided `[mcu]`,
-  the X/Y/Z steppers, TMC drivers, and the heated bed.
-- The **U1 toolhead** was connected to the Pi over **USB** and acted as the
-  printer's **extruder** (`[mcu e0]`).
-
-### B.2 The Snapmaker Klipper fork
-
-The toolhead MCU is an **AT32**, and stock upstream Klipper cannot initialize
-the AT32 chips correctly. The fork adds native support
-(`src/stm32/at32f415rc.c`, `at32f403a.c`, `clockline.c`). In the original test,
-**toolhead firmware and driving klippy both came from the Snapmaker fork.**
-Snapmaker publishes the fork on their GitHub: https://github.com/Snapmaker
-
-- Get the fork source and place it on the Pi, e.g. `/home/<user>/klipper-fork`.
-- Point klippy at the fork. If using a systemd `klipper.service`/`klipper.env`,
-  set `KLIPPER_ARGS` to `<fork>/klippy/klippy.py`.
-
-### B.3 Build the fork's C helper
-
-The fork has modified C code, so its `chelper/c_helper.so` is **incompatible**
-with stock klipper's. You must compile it for the fork:
-
-```
-cd <fork>/klippy/chelper && make
-```
-
-If it is missing, klippy dies with an `OSError` when the `reactor.Reactor()` is
-initialized (the main thread hangs at `_shutdown`).
-
-### B.4 Python environment (fork)
-
-A normal Python venv works. klippy tries to run
-`os.system("lava_io ...")` during startup for power control; `lava_io` does not
-exist on a Pi, which is **harmless** (exit code 127, non-fatal).
-
-### B.5 Fork firmware on the toolhead
-
-**You do not need to reflash the toolhead** — the stock firmware on it is
-already protocol-compatible with fork klippy and works as-is.
-
-- Klippy does **not** require version strings to match.
-- What matters is **protocol compatibility** (klipper message/command CRC).
-- Klippy and toolhead firmware should be built from the **same fork source**.
-
-If you must build toolhead firmware, the fork build config is: MCU `stm32f105xc`,
-`CONFIG_MACH_AT32F415=y`, 8 MHz xtal → 144 MHz, `CONFIG_USBSERIAL=y`,
-`CONFIG_STM32_USB_PA11_PA12=y`, VID/PID `1d50:614e`. Flashing requires a
-power-cycle + BOOT0 procedure (the toolhead has no software DFU trigger) — a
-separate exercise, not needed to make it work with the Pi. **Note: reflashing a
-toolhead has not been tested as part of this project.**
-
-### B.6 Original fork `printer.cfg` requirements
-
-The fork's `[printer]` section **requires** `max_logical_extruder_num: 32` and
-`max_physical_extruder_num: 4` (U1 values; the fork has no default).
-
-Example main config (SKR Mini E3 v2.0):
-
-```ini
-[include toolhead.cfg]
-
-# --- X/Y/Z steppers on the main board (example: SKR Mini E3 v2.0) ---
-[stepper_x]
-step_pin: PB13
-dir_pin: !PB12
-enable_pin: !PB14
-microsteps: 16
-rotation_distance: 40
-endstop_pin: ^PC0
-position_endstop: 0
-position_max: 235
-homing_speed: 50
-
-[tmc2209 stepper_x]
-uart_pin: PC11
-tx_pin: PC10
-uart_address: 0
-run_current: 0.580
-stealthchop_threshold: 999999
-
-[stepper_y]
-step_pin: PB10
-dir_pin: !PB2
-enable_pin: !PB11
-microsteps: 16
-rotation_distance: 40
-endstop_pin: ^PC1
-position_endstop: 0
-position_max: 235
-homing_speed: 50
-
-[tmc2209 stepper_y]
-uart_pin: PC11
-tx_pin: PC10
-uart_address: 2
-run_current: 0.580
-stealthchop_threshold: 999999
-
-[stepper_z]
-step_pin: PB0
-dir_pin: PC5
-enable_pin: !PB1
-microsteps: 16
-rotation_distance: 8
-endstop_pin: ^PC2
-position_endstop: 0.0
-position_max: 250
-
-[tmc2209 stepper_z]
-uart_pin: PC11
-tx_pin: PC10
-uart_address: 1
-run_current: 0.580
-stealthchop_threshold: 999999
-
-[heater_bed]
-heater_pin: PC9
-sensor_type: ATC Semitec 104GT-2
-sensor_pin: PC3
-control: pid
-pid_Kp: 54.027
-pid_Ki: 0.770
-pid_Kd: 948.182
-min_temp: -100
-max_temp: 130
-
-[fan]
-pin: PC6
-
-[mcu]
-serial: /dev/serial/by-id/<your-main-board-usb-serial>
-
-[printer]
-kinematics: cartesian
-max_logical_extruder_num: 32
-max_physical_extruder_num: 4
-max_velocity: 300
-max_accel: 3000
-max_z_velocity: 5
-max_z_accel: 100
-
-# SKR Mini E3 v2.0: keep USB from interfering with the F103 boot
-[static_digital_output usb_pullup_enable]
-pins: !PA14
-```
-
-### B.7 Fork toolhead config notes
-
-The toolhead **must** be `[extruder]` (index 0). The fork iterates `extruder`,
-`extruder1`, ... in `kinematics/extruder.py:add_printer_objects` and **stops at
-the first missing section** — so if there is no `[extruder]`, no extruders load.
-
-**Park options gotcha (fork):** if any extruder has `xy_park_position` /
-`y_idle_position` / park-detector config, *every* `[extruder]`/`[extruderN]`
-section must agree, or the fork raises `xy_park_position config mismatch`.
-For a single bench extruder, just omit all park options.
-
-### B.8 Fork bring-up and gotchas
-
-Bring-up step 1 was: **build the fork's C helper**
-(`cd <fork>/klippy/chelper && make`).
-
-Additional fork gotchas:
-
-| Symptom | Cause / fix |
-|---|---|
-| `OSError` at `reactor.Reactor()` init | `chelper/c_helper.so` missing or built by stock klipper — rebuild in the fork. |
-| `[printer]` config error, no default | Fork requires `max_logical_extruder_num: 32` + `max_physical_extruder_num: 4`. |
-| `xy_park_position config mismatch` | All extruder sections must agree on park config — or omit park options everywhere. |
-| `/printer/gcode/script` returns 400 `Missing Argument [script]` | This fork's API quirk — use `printer/gcode/firmware_restart` / `printer/gcode/restart` instead. |
-| klippy runs `lava_io` and fails | `lava_io` is a Snapmaker binary; on a Pi it is harmless (exit 127). |
-
-### B.9 Original reference facts (fork/SKR)
-
-- Main board (SKR Mini E3 v2.0) fork firmware product string has a
-  `-00000000000000-0000000000` suffix — that is the fork's
-  `CONFIG_USB_PRODUCT_SUFFIX`, a useful way to confirm a fork build is flashed.
-- SKR boards flash from an SD card: copy `out/klipper.bin` to `firmware.bin`,
-  power cycle. (`make flash` does not work on BTT boards; they may not rename
-  the file to `FIRMWARE.CUR`, yet still flash successfully.)
-- The fork's klippy uses klipper message/command **CRC compatibility**, not
-  version strings — build firmware and klippy from the same fork source.
