@@ -2003,7 +2003,7 @@ class PrinterProbe:
             self.printer.add_object('extruder_offset_calibration', ExtruderOffsetCalibration(config))
     def get_probe_params(self, gcmd=None):
         return self.probe_session.get_probe_params(gcmd)
-    def get_offsets(self):
+    def get_offsets(self, gcmd=None):
         return self.probe_offsets.get_offsets()
     def get_status(self, eventtime):
         return self.cmd_helper.get_status(eventtime)
