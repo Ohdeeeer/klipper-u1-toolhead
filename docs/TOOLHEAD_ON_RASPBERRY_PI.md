@@ -46,9 +46,6 @@ accelerometer, and a **bed-detection coil** used as a Z-probe.
 - MCU clock: **144 MHz** from an **8 MHz** crystal.
 - USB: **USB-OTG on PA11/PA12**, enumerated as a Klipper CDC-ACM device
   (VID/PID `1d50:614e`).
-  - **These USB pins are fixed on the MCU itself** (`CONFIG_STM32_USB_PA11_PA12`
-    in the firmware build), not on which USB port you plug the toolhead into.
-    D+/D- always route to PA11/PA12 regardless of the port or hub used.
 
 ### 2.2 The USB-C toolhead cable
 
