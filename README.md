@@ -5,6 +5,10 @@ Snapmaker U1 toolhead for toolchangers. The toolhead is an AT32F415RC
 ("STM32F105 drop-in") MCU with an inductance-coil bed probe and a LIS2DW
 accelerometer.
 
+## Getting started
+
+**[Build and bring up a U1 toolhead with a Raspberry Pi](docs/TOOLHEAD_ON_RASPBERRY_PI.md)**
+
 ## What this fork adds (vs. upstream Klipper)
 
 Firmware (`src/stm32/`):
@@ -29,8 +33,8 @@ Host (`klippy/`):
 
 - `config/sample-snapmaker-u1-toolhead.cfg`: U1 toolhead as a single
   `[extruder]` with the coil probe and LIS2DW
-- `docs/TOOLHEAD_ON_RASPBERRY_PI.md`: build + bring-up guide for driving a U1
-  toolhead from a Raspberry Pi with this port
+- [TOOLHEAD_ON_RASPBERRY_PI.md](docs/TOOLHEAD_ON_RASPBERRY_PI.md): build +
+  bring-up guide for driving a U1 toolhead from a Raspberry Pi with this port
 - `config/at32f415.config.resolved`: verified toolhead firmware `.config`
 - `config/octopus-pro-v1.1.config.resolved`: example main-board `.config`
   (BTT Octopus Pro v1.1, STM32H723)
