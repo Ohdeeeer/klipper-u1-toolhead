@@ -1,9 +1,11 @@
 # Klipper with Snapmaker U1 toolhead support
 
+TL;DR - Lets you use U1 toolheads on any Klipper printer. AI was used to port code and fix issues.
+
 Fork of [mainline Klipper](https://www.klipper3d.org/) that adds support for the
-Snapmaker U1 toolhead for toolchangers. The toolhead is an AT32F415RC
-("STM32F105 drop-in") MCU with an inductance-coil bed probe and a LIS2DW
-accelerometer.
+Snapmaker U1 toolhead for other Klipper based printers and toolchangers. 
+The toolhead is an AT32F415RC ("STM32F105 drop-in") MCU with an inductance-coil bed probe and a LIS2DW
+accelerometer(accelerometer only on the U1's left tool or on all replacement U1 toolheads).
 
 ## Getting started
 
